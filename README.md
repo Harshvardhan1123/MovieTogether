@@ -68,7 +68,7 @@ The repository includes a Docker deployment for an AWS EC2 prototype:
 1. Create the Supabase project and apply the migrations before enabling real room data.
 2. Copy `deploy/.env.production.example` to `.env.production` on the server and fill in the public Supabase and WebRTC values.
 3. Configure DNS for `harshvardhan0.in` and `www.harshvardhan0.in` to point to the server.
-4. Set `ACME_EMAIL` in `.env.production`, then run `docker compose --env-file .env.production up -d --build`.
+4. Set `ACME_EMAIL` in `.env.production`, then run `bash deploy/rebuild.sh`. This explicitly loads `.env.production` for the Next.js build arguments and avoids accidentally baking a stale shell or `.env` value into the browser bundle.
 5. Caddy obtains and renews the HTTPS certificate, while Docker restarts the app after an EC2 reboot.
 
 The Docker image uses Next.js standalone output. Caddy is the public reverse proxy; the Next.js container is not exposed directly to the internet. Keep `.env.production` on the server only and never commit it. A TURN server remains optional, but restrictive networks may require one for reliable WebRTC connections.
