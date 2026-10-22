@@ -17,6 +17,9 @@ set +a
 : "${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required}"
 : "${ACME_EMAIL:?ACME_EMAIL is required}"
 
-docker compose --env-file .env.production build --no-cache app
+docker compose --env-file .env.production build \
+  --no-cache \
+  --build-arg "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" \
+  app
 docker compose --env-file .env.production up -d --force-recreate app caddy
 docker compose --env-file .env.production ps
