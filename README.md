@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MovieTogether
 
-## Getting Started
+MovieTogether is a dark, cinematic watch-room experience for friends who want to watch together from different places. The current first slice includes the responsive dashboard, room preview, chat interactions, playback controls, media-source picker, participant panel, and local-video validation UI.
 
-First, run the development server:
+## Current status
 
-```bash
+This repository currently contains the frontend foundation, a Supabase-backed dashboard room list, and the first authentication/database slice. The dashboard loads active rooms visible to the signed-in user. The Supabase browser client boundary is in [`src/lib/supabase-browser.ts`](./src/lib/supabase-browser.ts), and email/password authentication is in [`src/app/login/page.tsx`](./src/app/login/page.tsx).
+
+The room page now uses Supabase Realtime for chat, membership, playback updates, and WebRTC signaling. Persistent chat and host playback actions are wired to the database. Local movie-file playback still requires the host to share authorized content, and mesh WebRTC is intended only for small rooms.
+
+## Run locally
+
+Requirements: Node.js 20+ and npm.
+
+```powershell
+npm install
+Copy-Item .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Supabase variables are optional for the current UI demo. Add them to `.env.local` before wiring authentication and room persistence:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-## Learn More
+The publishable key is designed for browser use and is protected by RLS. Never put a Supabase service-role or secret key in client-side code or a `NEXT_PUBLIC_` variable. The app refreshes auth cookies through [`middleware.ts`](./middleware.ts).
 
-To learn more about Next.js, take a look at the following resources:
+Video calls use Supabase Realtime Broadcast for signaling and WebRTC for peer media. The default STUN server is suitable for development. Production deployments should provide a TURN server through `NEXT_PUBLIC_TURN_SERVER_URL`, `NEXT_PUBLIC_TURN_USERNAME`, and `NEXT_PUBLIC_TURN_CREDENTIAL`; use short-lived credentials because these values are sent to the browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Local movie files are currently delivered from the host to members as a captured WebRTC media stream. This preserves authorized local playback without exposing filesystem paths, but it cannot buffer HLS/DASH segments ahead of time. The host upload connection is shared across members, so larger rooms or slower uplinks require an HLS/DASH pipeline backed by authorized private storage and server-side transcoding.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Supabase setup
 
-## Deploy on Vercel
+1. Create a Supabase project.
+2. Copy the project URL and publishable/anonymous key into `.env.local`.
+3. Run [`supabase/migrations/20261022000100_initial_room_schema.sql`](./supabase/migrations/20261022000100_initial_room_schema.sql) in the Supabase SQL Editor, or apply it through the Supabase CLI.
+4. In Supabase Auth settings, choose whether email confirmation is required.
+5. Open `/login` and create a test account.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The migration enables RLS on every application table. It creates profiles on signup, automatically adds room hosts as approved members, and limits chat/playback writes to approved members and hosts.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+If you already ran the first migration and see `infinite recursion detected in policy`, run the repair migration [`supabase/migrations/20261022000200_fix_rls_recursion.sql`](./supabase/migrations/20261022000200_fix_rls_recursion.sql) in the SQL Editor. It replaces the circular room-membership policies with private helper checks. Room-code discovery uses a narrowly scoped authenticated RPC; it does not expose all active rooms through the `rooms` table policy.
+
+## Validation
+
+```powershell
+npm run lint
+npm run build
+```
+
+## Media policy
+
+MovieTogether must not bypass DRM, download or decrypt OTT streams, proxy restricted provider content, or circumvent provider rules. The production implementation may support:
+
+- Official provider links or provider-approved embeds
+- YouTube videos that permit embedding
+- Host-local video files the host owns or is authorized to share, streamed through browser-supported WebRTC
+- Authorized uploads in private storage with access control
+
+When a provider does not permit embedding, the app should show an official external link instead of attempting to work around the restriction.
+
+## Deployment target
+
+The intended deployment target is Vercel with Supabase:
+
+1. Create a Supabase project.
+2. Add the URL and publishable/anonymous key to Vercel environment variables.
+3. Add database migrations and RLS policies before enabling real room data.
+4. Deploy the Next.js app to Vercel.
+
+For reliable production video rooms beyond a small peer-to-peer group, add an SFU integration boundary such as LiveKit rather than assuming mesh WebRTC will scale.
