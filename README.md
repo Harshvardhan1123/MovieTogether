@@ -63,11 +63,14 @@ When a provider does not permit embedding, the app should show an official exter
 
 ## Deployment target
 
-The intended deployment target is Vercel with Supabase:
+The repository includes a Docker deployment for an AWS EC2 prototype:
 
-1. Create a Supabase project.
-2. Add the URL and publishable/anonymous key to Vercel environment variables.
-3. Add database migrations and RLS policies before enabling real room data.
-4. Deploy the Next.js app to Vercel.
+1. Create the Supabase project and apply the migrations before enabling real room data.
+2. Copy `deploy/.env.production.example` to `.env.production` on the server and fill in the public Supabase and WebRTC values.
+3. Configure DNS for `harshvardhan0.in` and `www.harshvardhan0.in` to point to the server.
+4. Set `ACME_EMAIL` in `.env.production`, then run `docker compose --env-file .env.production up -d --build`.
+5. Caddy obtains and renews the HTTPS certificate, while Docker restarts the app after an EC2 reboot.
+
+The Docker image uses Next.js standalone output. Caddy is the public reverse proxy; the Next.js container is not exposed directly to the internet. Keep `.env.production` on the server only and never commit it. A TURN server remains optional, but restrictive networks may require one for reliable WebRTC connections.
 
 For reliable production video rooms beyond a small peer-to-peer group, add an SFU integration boundary such as LiveKit rather than assuming mesh WebRTC will scale.

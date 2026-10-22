@@ -1,0 +1,11 @@
+{
+  email {$ACME_EMAIL}
+}
+
+harshvardhan0.in {
+  reverse_proxy app:3000
+}
+
+www.harshvardhan0.in {
+  redir https://harshvardhan0.in{uri} permanent
+}
